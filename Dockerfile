@@ -1,20 +1,20 @@
-# Use uma imagem base com Node.js
-FROM node:14
+# Use a imagem base do Node.js com a versão mais recente
+FROM node:latest
 
 # Defina o diretório de trabalho dentro do contêiner
 WORKDIR /app
 
-# Copie os arquivos package.json e package-lock.json para o diretório de trabalho
+# Copie o arquivo package.json e package-lock.json para o diretório de trabalho
 COPY package*.json ./
 
-# Instale apenas as dependências de produção
-RUN npm ci --only=production
+# Instale as dependências do projeto
+RUN npm install
 
 # Copie o restante dos arquivos do projeto para o diretório de trabalho
 COPY . .
 
 # Exponha a porta em que o aplicativo será executado (se necessário)
-# EXPOSE 3000
+EXPOSE 3000
 
-# Comando para iniciar o aplicativo
+# Defina o comando para iniciar o aplicativo
 CMD ["npm", "start"]
