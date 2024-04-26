@@ -7,8 +7,8 @@ WORKDIR /app
 # Copie os arquivos package.json e package-lock.json para o diretório de trabalho
 COPY package*.json ./
 
-# Instale as dependências do projeto
-RUN npm install
+# Instale apenas as dependências de produção
+RUN npm ci --only=production
 
 # Copie o restante dos arquivos do projeto para o diretório de trabalho
 COPY . .
