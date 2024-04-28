@@ -13,7 +13,7 @@ const openai = new OpenAI();
 
 const messageBuffer = {};
 const messageTimers = {};
-const bufferTime = 20000;
+const bufferTime = 05;
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
