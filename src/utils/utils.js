@@ -1,3 +1,4 @@
+// SRC/UTILS/UTILS.JS:
 import axios from 'axios';
 import dotenv from "dotenv";
 import OpenAI from "openai";
@@ -13,7 +14,7 @@ const openai = new OpenAI();
 
 const messageBuffer = {};
 const messageTimers = {};
-const bufferTime = 05;
+const bufferTime = 5000; // Corrigido para 5000 milissegundos (5 segundos)
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
@@ -24,7 +25,7 @@ async function audio(path1, maxRetries = 3, delay = 1000) {
       const transcription = await openai.audio.transcriptions.create({
         file: fs.createReadStream(path1),
         model: "whisper-1",
-        fileType: "ogg", // Adicionado o tipo de arquivo
+        fileType: "ogg",
       });
       return transcription.text;
     } catch (error) {
@@ -61,8 +62,8 @@ async function transcryptImage(imagePath) {
         content: [
           {
             type: "text",
-            text: `Descreva os veiculos das fotos, informe, cor, modelo quantidade de portas. Se a imagem não for de um veiculo, proveavelmente 
-                        pode ser uma figurinha. De qualquer fora, descreva o que está na imagem.`
+            text: `Descreva os veiculos das fotos, informe, cor, modelo quantidade de portas. Se a imagem não for de um veiculo, provavelmente 
+                        pode ser uma figurinha. De qualquer forma, descreva o que está na imagem.`
           },
           {
             type: "image_url",
@@ -77,13 +78,8 @@ async function transcryptImage(imagePath) {
   };
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers,
-      body: JSON.stringify(payload)
-    });
-    const data = await response.json();
-    return data.choices[0].message.content;
+    const response = await axios.post("https://api.openai.com/v1/chat/completions", payload, { headers });
+    return response.data.choices[0].message.content;
   } catch (error) {
     console.error('Error:', error);
     return "";
@@ -94,7 +90,7 @@ async function extractAudioFromVideo(videoFilePath, audioOutputPath) {
   return new Promise((resolve) => {
     ffmpeg(videoFilePath)
       .output(audioOutputPath)
-      .audioCodec('libopus') // Alterado para libopus
+      .audioCodec('libopus')
       .on('end', () => {
         console.log(`Áudio extraído e salvo em: ${audioOutputPath}`);
         resolve(true);
@@ -113,20 +109,17 @@ async function query(data) {
 
   while (attempts < maxAttempts) {
     try {
-      const response = await fetch(process.env.FLOWISE_ENDPOINT_URL, {
-        method: "POST",
+      const response = await axios.post(process.env.FLOWISE_ENDPOINT_URL, data, {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
       });
 
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error(`Request failed with status ${response.status}`);
       }
 
-      const result = await response.json();
-      return result;
+      return response.data;
     } catch (error) {
       console.error(`Attempt ${attempts + 1} failed: ${error}`);
       attempts += 1;
@@ -146,6 +139,9 @@ async function handleMessage(client, message) {
     const messageType = Object.keys(message.message)[0];
 
     switch (messageType) {
+      case 'conversation':
+        input = message.message.conversation;
+        break;
       case 'videoMessage':
         input = await extensoes.processVideo(message);
         break;
@@ -160,7 +156,7 @@ async function handleMessage(client, message) {
         break;
       default:
         console.log('Tipo de mensagem não suportado.');
-        input = 'responda com a mensagem de boas vindas';
+        input = 'Olá, como posso ajudar?'; // Mensagem de boas-vindas padrão
     }
 
     const contextInfo = message.message[messageType]?.contextInfo;
@@ -179,30 +175,27 @@ async function handleMessage(client, message) {
       clearTimeout(messageTimers[message.key.remoteJid]);
     }
 
-    await new Promise((resolve, reject) => {
-      messageTimers[message.key.remoteJid] = setTimeout(async () => {
-        try {
-          const fullMessage = messageBuffer[message.key.remoteJid].join(' ');
-          delete messageBuffer[message.key.remoteJid];
-          delete messageTimers[message.key.remoteJid];
+    messageTimers[message.key.remoteJid] = setTimeout(async () => {
+      try {
+        const fullMessage = messageBuffer[message.key.remoteJid].join(' ');
+        delete messageBuffer[message.key.remoteJid];
+        delete messageTimers[message.key.remoteJid];
 
-          const apiResponse = await query({
-            "question": fullMessage,
-            "overrideConfig": {
-              "sessionId": message.key.remoteJid
-            }
-          });
+        const apiResponse = await query({
+          "question": fullMessage,
+          "overrideConfig": {
+            "sessionId": message.key.remoteJid
+          }
+        });
 
-          const textoResposta = apiResponse.text.toLowerCase();
-          console.log("Texto da resposta: ", textoResposta);
+        const textoResposta = apiResponse.text.toLowerCase();
+        console.log("Texto da resposta: ", textoResposta);
 
-          await client.sendMessage(message.key.remoteJid, { text: apiResponse.text.replace(/\]\(/g, ': ').replace(/\[|\]|\(|\)/g, '').replace(/\*\(/g, "") });
-          resolve();
-        } catch (error) {
-          reject(error);
-        }
-      }, bufferTime);
-    });
+        await client.sendMessage(message.key.remoteJid, { text: apiResponse.text.replace(/\]\(/g, ': ').replace(/\[|\]|\(|\)/g, '').replace(/\*\(/g, "") });
+      } catch (error) {
+        console.error('Erro ao enviar mensagem:', error);
+      }
+    }, bufferTime);
 
     return true;
   } catch (error) {
