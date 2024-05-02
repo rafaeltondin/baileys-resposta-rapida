@@ -62,8 +62,7 @@ async function transcryptImage(imagePath) {
         content: [
           {
             type: "text",
-            text: `Descreva os veiculos das fotos, informe, cor, modelo quantidade de portas. Se a imagem não for de um veiculo, provavelmente 
-                        pode ser uma figurinha. De qualquer forma, descreva o que está na imagem.`
+            text: `Descreva o que está na imagem.`
           },
           {
             type: "image_url",
