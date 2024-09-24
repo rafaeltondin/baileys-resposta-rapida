@@ -101,36 +101,6 @@ async function extractAudioFromVideo(videoFilePath, audioOutputPath) {
   });
 }
 
-async function query(data) {
-  let attempts = 0;
-  const maxAttempts = 3;
-
-  while (attempts < maxAttempts) {
-    try {
-      const response = await axios.post(process.env.FLOWISE_ENDPOINT_URL, data, {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (response.status !== 200) {
-        throw new Error(`Request failed with status ${response.status}`);
-      }
-
-      return response.data;
-    } catch (error) {
-      console.error(`Tentativa ${attempts + 1} falhou: ${error}`);
-      attempts += 1;
-
-      if (attempts < maxAttempts) {
-        await new Promise((resolve) => setTimeout(resolve, 2000 * attempts));
-      }
-    }
-  }
-
-  return "Não foi possível processar a solicitação, tente novamente mais tarde.";
-}
-
 async function handleMessage(client, message) {
   try {
     let input = '';
