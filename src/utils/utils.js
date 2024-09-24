@@ -1,4 +1,4 @@
-// baileys-resposta-rapida-main/src/utils/utils.js
+// src/utils/utils.js
 
 import axios from 'axios';
 import dotenv from "dotenv";
