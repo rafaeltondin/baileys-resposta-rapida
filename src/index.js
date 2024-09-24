@@ -19,9 +19,11 @@ async function startWhatsAppSocket() {
   const authState = new MySQLAuthState(dbConfig);
   await authState.init();
 
-  // Obtém o estado e define a função para salvar credenciais
+  // Obtém o estado e a função para salvar credenciais
   const { stateData, saveState } = authState;
   const state = stateData;
+
+  // Define a função para salvar credenciais
   const saveCreds = async () => {
     await authState.saveState();
   };
@@ -44,7 +46,8 @@ async function startWhatsAppSocket() {
       if (connection === 'close') {
         if (lastDisconnect && lastDisconnect.error) {
           const boomError = lastDisconnect.error;
-          const shouldReconnect = boomError.output ? boomError.output.statusCode !== DisconnectReason.loggedOut : true;
+          const shouldReconnect =
+            boomError.output ? boomError.output.statusCode !== DisconnectReason.loggedOut : true;
           console.log('Connection closed due to', boomError, ', reconnecting:', shouldReconnect);
           if (shouldReconnect) {
             startWhatsAppSocket();
@@ -80,7 +83,6 @@ async function startWhatsAppSocket() {
         console.log(`Pasta '${folder}' criada.`);
       }
     }
-
   } catch (error) {
     console.error('Falha ao iniciar o socket do WhatsApp:', error);
     // Tenta reiniciar a conexão após um erro
