@@ -4,10 +4,7 @@ import mysql from 'mysql2/promise';
 class MySQLAuthState {
   constructor(dbConfig) {
     this.dbConfig = dbConfig;
-    this.state = {
-      creds: {},
-      keys: {}
-    };
+    this.state = null; // Inicializa o estado como null
   }
 
   async init() {
@@ -25,14 +22,14 @@ class MySQLAuthState {
     const [rows] = await this.connection.execute(`SELECT state FROM auth WHERE id = 1`);
     if (rows.length > 0 && rows[0].state) {
       try {
-        this.state = JSON.parse(rows[0].state);
+        this.state = JSON.parse(rows[0].state); // Analisa o JSON aqui
       } catch (error) {
         console.error('Erro ao analisar o estado JSON:', error);
-        // Se houver erro, inicializa o estado padrão
-        this.state = { creds: {}, keys: {} };
+        this.state = { creds: {}, keys: {} }; // Define um estado padrão em caso de erro
       }
     } else {
       // Insere um estado inicial vazio
+      this.state = { creds: {}, keys: {} }; // Define um estado padrão
       await this.connection.execute(`INSERT INTO auth (id, state) VALUES (1, ?)`, [JSON.stringify(this.state)]);
     }
   }
