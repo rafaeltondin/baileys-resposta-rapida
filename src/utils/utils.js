@@ -190,7 +190,7 @@ async function handleMessage(client, message) {
         const textoResposta = apiResponse.text.toLowerCase();
         console.log("Texto da resposta: ", textoResposta);
 
-        await client.sendMessage(message.key.remoteJid, { text: apiResponse.text.replace(/$$$$/g, ': ').replace(/$$|$$|$$|$$/g, '').replace(/\*$$/g, "") });
+        await client.sendMessage(message.key.remoteJid, { text: apiResponse.text.replace(/:\s*$/, '') });
       } catch (error) {
         console.error('Erro ao enviar mensagem:', error);
       }
