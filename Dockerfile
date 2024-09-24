@@ -1,5 +1,5 @@
-# Use a imagem base do Node.js com a versão mais recente
-FROM node:latest
+# Use uma versão específica do Node.js
+FROM node:18
 
 # Defina o diretório de trabalho dentro do contêiner
 WORKDIR /app
@@ -8,12 +8,12 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instale as dependências do projeto
-RUN npm install
+RUN npm ci
 
 # Copie o restante dos arquivos do projeto para o diretório de trabalho
 COPY . .
 
-# Exponha a porta em que o aplicativo será executado (se necessário)
+# Exponha a porta em que o aplicativo será executado
 EXPOSE 3000
 
 # Defina o comando para iniciar o aplicativo
