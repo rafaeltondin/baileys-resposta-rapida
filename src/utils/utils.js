@@ -176,9 +176,9 @@ async function handleMessage(client, message) {
       }
     });
 
-    // Enviar a resposta do Flowise
-    await client.sendMessage(message.key.remoteJid, { 
-      text: apiResponse.text.replace(/$$$$/g, ': ').replace(/$$|$$|$$|$$/g, '').replace(/\*$$/g, "") 
+    // Enviar a resposta do Flowise (removendo ':' extras)
+    await client.sendMessage(message.key.remoteJid, {
+      text: apiResponse.text.replace(/$$$$/g, ' ').replace(/$$|$$|$$|$$/g, '').replace(/\*$$/g, "")
     });
 
     return true;
