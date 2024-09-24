@@ -31,10 +31,12 @@ async function processVideo(message) {
 
 async function processImage(message) {
   const buffer = await downloadMediaMessage(message, 'buffer', {});
-  const imageFileName = `images/${message.key.id}.${mime.extension(message.message.imageMessage.mimetype)}`;
-  const imageFilePath = await saveMediaFile(buffer, imageFileName);
-  const imgTranscription = await utils.transcryptImage(imageFilePath);
-  return `Tente encontrar os produtos mais similares a descrição a seguir:${imgTranscription}`;
+  const imageFileName = `images/${message.key.id}.jpg`; // Altere para o formato correto
+  await saveMediaFile(buffer, imageFileName);
+
+  // Chame a função transcryptImage com o caminho da imagem
+  const imgTranscription = await utils.transcryptImage(imageFileName);
+  return `Tente encontrar os produtos mais similares à descrição a seguir: ${imgTranscription}`;
 }
 
 async function processAudio(message) {
