@@ -1,3 +1,5 @@
+// baileys-resposta-rapida-main/src/utils/extensoes.js
+
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as mime from 'mime-types';
@@ -60,10 +62,10 @@ async function quoted(contextInfo, primaryMessage) {
 
   if (contextInfo.participant === "554797653226@s.whatsapp.net") {
     quotedText = quotedMessage.conversation;
-    response = `mensagem atual ${primaryMessage} \n mensagem recuperada: ${quotedText}  `;
+    response = `mensagem atual ${primaryMessage} \n mensagem recuperada: ${quotedText}`;
   } else if (quotedMessage?.extendedTextMessage) {
     quotedText = quotedMessage.extendedTextMessage.text;
-    response = `mensagem atual ${primaryMessage} \n mensagem recuperada: ${quotedText}  `;
+    response = `mensagem atual ${primaryMessage} \n mensagem recuperada: ${quotedText}`;
   } else {
     console.log("fileSha256 não está disponível para a mensagem citada.");
   }
