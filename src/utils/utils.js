@@ -119,7 +119,7 @@ async function query(data) {
 
       return response.data;
     } catch (error) {
-      console.error(`Attempt ${attempts + 1} failed: ${error}`);
+      console.error(`Tentativa ${attempts + 1} falhou: ${error}`);
       attempts += 1;
 
       if (attempts < maxAttempts) {
