@@ -1,5 +1,4 @@
 // src/utils/utils.js
-
 import axios from 'axios';
 import dotenv from "dotenv";
 import OpenAI from "openai";
@@ -11,13 +10,16 @@ import extensoes from './extensoes.js';
 dotenv.config();
 
 const apiKey = process.env.OPENAI_API_KEY;
-const openai = new OpenAI();
-
-const messageBuffer = {};
-const messageTimers = {};
-const bufferTime = 5000; // Corrigido para 5000 milissegundos (5 segundos)
+const openai = new OpenAI({
+  apiKey: apiKey
+});
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+
+async function encodeImage(imagePath) {
+  const image = fs.readFileSync(imagePath);
+  return Buffer.from(image).toString('base64');
+}
 
 async function audio(path1, maxRetries = 3, delay = 1000) {
   let attempts = 0;
@@ -58,7 +60,7 @@ async function transcryptImage(imagePath) {
         content: [
           {
             type: "text",
-            text: `Descreva o que está na imagem.`
+            text: "Descreva o que está na imagem."
           },
           {
             type: "image_url",
@@ -76,7 +78,7 @@ async function transcryptImage(imagePath) {
     const response = await axios.post("https://api.openai.com/v1/chat/completions", payload, { headers });
     return response.data.choices[0].message.content;
   } catch (error) {
-    console.error('Erro:', error);
+    console.error('Erro:', error.response ? error.response.data : error.message);
     return "";
   }
 }
@@ -125,7 +127,7 @@ async function query(data) {
     }
   }
 
-  return "não foi possível processar a solicitação, tente novamente mais tarde";
+  return "Não foi possível processar a solicitação, tente novamente mais tarde.";
 }
 
 async function handleMessage(client, message) {
@@ -160,13 +162,13 @@ async function handleMessage(client, message) {
         input = 'Olá, como posso ajudar?'; // Mensagem de boas-vindas padrão
     }
 
-    // Verificação adicional antes de enviar a mensagem
-    if (input.trim() === '') {
-      console.log('Nenhuma resposta gerada para a mensagem.');
-      return false;
+    const contextInfo = message.message[messageType]?.contextInfo;
+    if (contextInfo?.quotedMessage) {
+      const quotedMessage = contextInfo;
+      input += " " + await extensoes.quoted(quotedMessage, input);
     }
 
-    // Envio da mensagem para o Flowise
+    // Processar a mensagem com o Flowise
     const apiResponse = await query({
       "question": input,
       "overrideConfig": {
@@ -174,11 +176,11 @@ async function handleMessage(client, message) {
       }
     });
 
-    const textoResposta = apiResponse.text.toLowerCase();
-    console.log("Texto da resposta: ", textoResposta);
+    // Enviar a resposta do Flowise
+    await client.sendMessage(message.key.remoteJid, { 
+      text: apiResponse.text.replace(/$$$$/g, ': ').replace(/$$|$$|$$|$$/g, '').replace(/\*$$/g, "") 
+    });
 
-    // Envio da resposta de volta ao usuário
-    await client.sendMessage(message.key.remoteJid, { text: textoResposta });
     return true;
   } catch (error) {
     console.error('Erro ao processar mensagem:', error);
@@ -186,4 +188,4 @@ async function handleMessage(client, message) {
   }
 }
 
-export default { audio, transcryptImage, extractAudioFromVideo, handleMessage };
+export default { audio, transcryptImage, extractAudioFromVideo, query, handleMessage };
