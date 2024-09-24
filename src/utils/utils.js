@@ -1,4 +1,4 @@
-// SRC/UTILS/UTILS.JS:
+// src/utils/utils.js
 import axios from 'axios';
 import dotenv from "dotenv";
 import OpenAI from "openai";
@@ -42,7 +42,7 @@ async function audio(path1, maxRetries = 3, delay = 1000) {
 }
 
 function encodeImage(imagePath) {
-  const image = fs.readFileSync(`${imagePath}`);
+  const image = fs.readFileSync(imagePath);
   return Buffer.from(image).toString('base64');
 }
 
@@ -55,14 +55,14 @@ async function transcryptImage(imagePath) {
   };
 
   const payload = {
-    model: "gpt-4o-mini,
+    model: "gpt-4o-mini",
     messages: [
       {
         role: "user",
         content: [
           {
             type: "text",
-            text: `Descreva o que está na imagem.`
+            text: "Descreva o que está na imagem."
           },
           {
             type: "image_url",
