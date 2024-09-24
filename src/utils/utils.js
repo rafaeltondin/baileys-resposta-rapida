@@ -1,3 +1,5 @@
+// baileys-resposta-rapida-main/src/utils/utils.js
+
 import axios from 'axios';
 import dotenv from "dotenv";
 import OpenAI from "openai";
@@ -9,7 +11,11 @@ import extensoes from './extensoes.js';
 dotenv.config();
 
 const apiKey = process.env.OPENAI_API_KEY;
-const openai = new OpenAI();
+const openai = new OpenAI({
+  apiKey: apiKey
+});
+
+ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 async function encodeImage(imagePath) {
   const image = fs.readFileSync(imagePath);
@@ -48,7 +54,7 @@ async function transcryptImage(imagePath) {
   };
 
   const payload = {
-    model: "gpt-4o-mini", // Altere para o modelo correto
+    model: "gpt-4-vision-mini", // Use o nome correto do modelo conforme a documentação do OpenAI
     messages: [
       {
         role: "user",
@@ -73,7 +79,7 @@ async function transcryptImage(imagePath) {
     const response = await axios.post("https://api.openai.com/v1/chat/completions", payload, { headers });
     return response.data.choices[0].message.content;
   } catch (error) {
-    console.error('Error:', error.response ? error.response.data : error.message);
+    console.error('Erro:', error.response ? error.response.data : error.message);
     return "";
   }
 }
@@ -122,7 +128,7 @@ async function query(data) {
     }
   }
 
-  return "não foi possível processar a solicitação, tente novamente mais tarde";
+  return "Não foi possível processar a solicitação, tente novamente mais tarde.";
 }
 
 async function handleMessage(client, message) {
