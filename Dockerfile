@@ -1,5 +1,5 @@
-# Use uma versão específica do Node.js (LTS recomendada)
-FROM node:18
+# Use a imagem base do Node.js com a versão mais recente
+FROM node:latest
 
 # Defina o diretório de trabalho dentro do contêiner
 WORKDIR /app
@@ -13,7 +13,7 @@ RUN npm install
 # Copie o restante dos arquivos do projeto para o diretório de trabalho
 COPY . .
 
-# Exponha a porta em que o aplicativo será executado
+# Exponha a porta em que o aplicativo será executado (se necessário)
 EXPOSE 3000
 
 # Defina o comando para iniciar o aplicativo
