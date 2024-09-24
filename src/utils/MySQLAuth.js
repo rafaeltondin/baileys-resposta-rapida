@@ -4,7 +4,15 @@ import mysql from 'mysql2/promise';
 class MySQLAuthState {
   constructor(dbConfig) {
     this.dbConfig = dbConfig;
-    this.state = null; // Inicializa o estado como null
+    this.state = {
+      creds: {},
+      keys: {},
+      serializedSessions: {},
+      ephemeralKeyPair: {
+        pub: '',
+        priv: '',
+      },
+    };
   }
 
   async init() {
@@ -24,14 +32,34 @@ class MySQLAuthState {
       if (rows.length > 0 && rows[0].state) {
         try {
           // Verifica se o estado já é um objeto ou uma string
-          this.state = typeof rows[0].state === 'string' ? JSON.parse(rows[0].state) : rows[0].state;
+          const storedState = typeof rows[0].state === 'string' ? JSON.parse(rows[0].state) : rows[0].state;
+
+          // Assegura que todas as propriedades existam
+          this.state = {
+            creds: storedState.creds || {},
+            keys: storedState.keys || {},
+            serializedSessions: storedState.serializedSessions || {},
+            ephemeralKeyPair: storedState.ephemeralKeyPair || { pub: '', priv: '' },
+          };
         } catch (error) {
           console.error('Erro ao analisar o estado JSON:', error);
-          this.state = { creds: {}, keys: {} }; // Define um estado padrão em caso de erro
+          this.state = {
+            creds: {},
+            keys: {},
+            serializedSessions: {},
+            ephemeralKeyPair: { pub: '', priv: '' },
+          };
+          // Insere um estado inicial vazio
+          await this.connection.execute(`INSERT INTO auth (id, state) VALUES (1, ?)`, [JSON.stringify(this.state)]);
         }
       } else {
         // Insere um estado inicial vazio
-        this.state = { creds: {}, keys: {} }; // Define um estado padrão
+        this.state = {
+          creds: {},
+          keys: {},
+          serializedSessions: {},
+          ephemeralKeyPair: { pub: '', priv: '' },
+        };
         await this.connection.execute(`INSERT INTO auth (id, state) VALUES (1, ?)`, [JSON.stringify(this.state)]);
       }
     } catch (error) {
