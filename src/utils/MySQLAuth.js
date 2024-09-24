@@ -1,52 +1,82 @@
-// src/utils/MySQLAuth.js
+// src/index.js
+import { makeWASocket, fetchLatestBaileysVersion, DisconnectReason } from '@whiskeysockets/baileys';
+import utils from './utils/utils.js';
+import fs from 'fs';
+import dotenv from 'dotenv';
+import MySQLAuthState from './utils/MySQLAuth.js';
 
-import mysql from 'mysql2/promise';
+dotenv.config();
 
-class MySQLAuthState {
-    constructor(dbConfig) {
-        this.dbConfig = dbConfig;
-        this.state = {
-            creds: {},
-            keys: {}
-        };
-    }
+async function startWhatsAppSocket() {
+  try {
+    const dbConfig = {
+      host: process.env.DB_HOST,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+    };
 
-    async init() {
-        this.connection = await mysql.createConnection(this.dbConfig);
-        // Cria a tabela auth se não existir
-        await this.connection.execute(`
-            CREATE TABLE IF NOT EXISTS auth (
-                id INT PRIMARY KEY,
-                state JSON
-            )
-        `);
-        // Recupera o estado salvo se existir
-        const [rows] = await this.connection.execute(`SELECT state FROM auth WHERE id = 1`);
-        if (rows.length > 0 && rows[0].state) {
-            try {
-                this.state = JSON.parse(rows[0].state);
-            } catch (error) {
-                console.error('Erro ao analisar o estado JSON:', error);
-                // Se houver erro, inicializa o estado padrão
-                this.state = { creds: {}, keys: {} };
-            }
-        } else {
-            // Insere um estado inicial vazio
-            await this.connection.execute(`INSERT INTO auth (id, state) VALUES (1, ?)`, [JSON.stringify(this.state)]);
+    const authState = new MySQLAuthState(dbConfig);
+    await authState.init();
+
+    const { state, saveCreds } = {
+      state: authState.stateData,
+      saveCreds: async () => {
+        await authState.saveState();
+      }
+    };
+
+    const { version } = await fetchLatestBaileysVersion();
+
+    const sock = makeWASocket({
+      printQRInTerminal: true,
+      auth: state,
+      version,
+    });
+
+    sock.ev.on('connection.update', async (update) => {
+      const { connection, lastDisconnect } = update;
+      if (connection === 'close') {
+        if (lastDisconnect && 'error' in lastDisconnect && lastDisconnect.error) {
+          const boomError = lastDisconnect.error;
+          const shouldReconnect = boomError.output ? boomError.output.statusCode !== DisconnectReason.loggedOut : true;
+          console.log('Connection closed due to', boomError, ', reconnecting:', shouldReconnect);
+          if (shouldReconnect) {
+            startWhatsAppSocket(); // Reinicia a conexão
+          } else {
+            console.log('Desconectado permanentemente');
+          }
         }
-    }
+      } else if (connection === 'open') {
+        console.log('Conexão aberta com sucesso');
+        // Salva as credenciais após a conexão
+        await saveCreds();
+      }
+    });
 
-    get stateData() {
-        return this.state;
-    }
+    sock.ev.on('messages.upsert', async ({ messages }) => {
+      const message = messages[0];
+      console.log(JSON.stringify(message, undefined, 2));
+      if (!message.key.fromMe) {
+        console.log('Respondendo para', message.key.remoteJid);
+        await utils.handleMessage(sock, message);
+      }
+    });
 
-    async saveState() {
-        await this.connection.execute(`UPDATE auth SET state = ? WHERE id = 1`, [JSON.stringify(this.state)]);
-    }
+    sock.ev.on('creds.update', saveCreds);
 
-    async close() {
-        await this.connection.end();
+    // Criar as pastas necessárias se não existirem
+    const folders = ['audio', 'video', 'images'];
+    for (const folder of folders) {
+      if (!fs.existsSync(folder)) {
+        fs.mkdirSync(folder);
+      }
     }
+  } catch (error) {
+    console.error('Falha ao iniciar o socket do WhatsApp:', error);
+    // Tente reiniciar a conexão após um erro
+    setTimeout(startWhatsAppSocket, 5000); // Tente reconectar após 5 segundos
+  }
 }
 
-export default MySQLAuthState;
+startWhatsAppSocket();
