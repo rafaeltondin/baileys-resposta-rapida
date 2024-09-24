@@ -1,4 +1,4 @@
-# Use uma versão específica do Node.js
+# Use uma versão específica do Node.js (LTS recomendada)
 FROM node:18
 
 # Defina o diretório de trabalho dentro do contêiner
