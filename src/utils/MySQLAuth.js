@@ -1,4 +1,4 @@
-// baileys-resposta-rapida-main/src/utils/MySQLAuth.js
+// src/utils/MySQLAuth.js
 
 import mysql from 'mysql2/promise';
 
@@ -23,7 +23,13 @@ class MySQLAuthState {
         // Recupera o estado salvo se existir
         const [rows] = await this.connection.execute(`SELECT state FROM auth WHERE id = 1`);
         if (rows.length > 0 && rows[0].state) {
-            this.state = JSON.parse(rows[0].state);
+            try {
+                this.state = JSON.parse(rows[0].state);
+            } catch (error) {
+                console.error('Erro ao analisar o estado JSON:', error);
+                // Se houver erro, inicializa o estado padrão
+                this.state = { creds: {}, keys: {} };
+            }
         } else {
             // Insere um estado inicial vazio
             await this.connection.execute(`INSERT INTO auth (id, state) VALUES (1, ?)`, [JSON.stringify(this.state)]);
