@@ -8,34 +8,32 @@ import MySQLAuthState from './utils/MySQLAuth.js';
 dotenv.config();
 
 async function startWhatsAppSocket() {
+  const dbConfig = {
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+  };
+
+  // Inicializa o gerenciador de estado de autenticação MySQL
+  const authState = new MySQLAuthState(dbConfig);
+  await authState.init();
+
+  // Obtém o estado e define a função para salvar credenciais
+  const { stateData, saveState } = authState;
+  const state = stateData;
+  const saveCreds = async () => {
+    await authState.saveState();
+  };
+
   try {
-    // Configurações do banco de dados
-    const dbConfig = {
-      host: process.env.DB_HOST,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
-    };
-
-    // Inicializa o gerenciador de estado de autenticação MySQL
-    const authState = new MySQLAuthState(dbConfig);
-    await authState.init();
-
-    // Obtém o estado e a função para salvar credenciais
-    const { state, saveCreds } = {
-      state: authState.stateData,
-      saveCreds: async () => {
-        await authState.saveState();
-      }
-    };
-
     // Obtém a versão mais recente do Baileys
     const { version } = await fetchLatestBaileysVersion();
 
     // Cria o socket do WhatsApp
     const sock = makeWASocket({
       printQRInTerminal: true,
-      auth: state,
+      auth: state, // Passa o estado diretamente
       version,
     });
 
@@ -44,8 +42,7 @@ async function startWhatsAppSocket() {
       const { connection, lastDisconnect } = update;
 
       if (connection === 'close') {
-        // Reconexão em caso de erro
-        if (lastDisconnect && 'error' in lastDisconnect && lastDisconnect.error) {
+        if (lastDisconnect && lastDisconnect.error) {
           const boomError = lastDisconnect.error;
           const shouldReconnect = boomError.output ? boomError.output.statusCode !== DisconnectReason.loggedOut : true;
           console.log('Connection closed due to', boomError, ', reconnecting:', shouldReconnect);
@@ -80,8 +77,10 @@ async function startWhatsAppSocket() {
     for (const folder of folders) {
       if (!fs.existsSync(folder)) {
         fs.mkdirSync(folder);
+        console.log(`Pasta '${folder}' criada.`);
       }
     }
+
   } catch (error) {
     console.error('Falha ao iniciar o socket do WhatsApp:', error);
     // Tenta reiniciar a conexão após um erro
