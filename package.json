@@ -1,14 +1,15 @@
 {
     "name": "baileys",
     "version": "1.0.0",
-    "description": "",
+    "description": "WhatsApp bot using Baileys library",
     "main": "index.js",
     "type": "module",
     "scripts": {
-        "start": "node src/index.js"
+        "start": "node src/index.js",
+        "dev": "nodemon src/index.js"
     },
     "keywords": [],
-    "author": "",
+    "author": "Seu Nome",
     "license": "ISC",
     "dependencies": {
         "@ffmpeg-installer/ffmpeg": "^1.1.0",
@@ -19,5 +20,8 @@
         "mime-types": "^2.1.4",
         "openai": "^4.33.0",
         "qrcode-terminal": "^0.12.0"
+    },
+    "devDependencies": {
+        "nodemon": "^2.0.22"
     }
 }
