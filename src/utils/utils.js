@@ -11,16 +11,13 @@ import extensoes from './extensoes.js';
 dotenv.config();
 
 const apiKey = process.env.OPENAI_API_KEY;
-const openai = new OpenAI({
-  apiKey: apiKey
-});
+const openai = new OpenAI();
+
+const messageBuffer = {};
+const messageTimers = {};
+const bufferTime = 5000; // Corrigido para 5000 milissegundos (5 segundos)
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
-
-async function encodeImage(imagePath) {
-  const image = fs.readFileSync(imagePath);
-  return Buffer.from(image).toString('base64');
-}
 
 async function audio(path1, maxRetries = 3, delay = 1000) {
   let attempts = 0;
@@ -54,14 +51,14 @@ async function transcryptImage(imagePath) {
   };
 
   const payload = {
-    model: "gpt-4o-mini", // Use o nome correto do modelo conforme a documentação do OpenAI
+    model: "gpt-4o-mini",
     messages: [
       {
         role: "user",
         content: [
           {
             type: "text",
-            text: "Descreva o que está na imagem."
+            text: `Descreva o que está na imagem.`
           },
           {
             type: "image_url",
@@ -79,7 +76,7 @@ async function transcryptImage(imagePath) {
     const response = await axios.post("https://api.openai.com/v1/chat/completions", payload, { headers });
     return response.data.choices[0].message.content;
   } catch (error) {
-    console.error('Erro:', error.response ? error.response.data : error.message);
+    console.error('Erro:', error);
     return "";
   }
 }
@@ -101,10 +98,46 @@ async function extractAudioFromVideo(videoFilePath, audioOutputPath) {
   });
 }
 
+async function query(data) {
+  let attempts = 0;
+  const maxAttempts = 3;
+
+  while (attempts < maxAttempts) {
+    try {
+      const response = await axios.post(process.env.FLOWISE_ENDPOINT_URL, data, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.status !== 200) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error(`Attempt ${attempts + 1} failed: ${error}`);
+      attempts += 1;
+
+      if (attempts < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 2000 * attempts));
+      }
+    }
+  }
+
+  return "não foi possível processar a solicitação, tente novamente mais tarde";
+}
+
 async function handleMessage(client, message) {
   try {
     let input = '';
     const messageType = Object.keys(message.message)[0];
+
+    // Verifique se a mensagem é do próprio bot
+    if (message.key.fromMe) {
+      console.log('Mensagem recebida do próprio bot, ignorando...');
+      return false; // Ignora mensagens do próprio bot
+    }
 
     switch (messageType) {
       case 'conversation':
