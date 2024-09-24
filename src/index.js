@@ -1,10 +1,8 @@
 // src/index.js
 
 import { makeWASocket, fetchLatestBaileysVersion, DisconnectReason } from '@whiskeysockets/baileys';
-import { Boom } from '@hapi/boom';
 import utils from './utils/utils.js';
 import fs from 'fs';
-import path from 'path';
 import dotenv from 'dotenv';
 import MySQLAuthState from './utils/MySQLAuth.js';
 
