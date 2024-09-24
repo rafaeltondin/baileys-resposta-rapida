@@ -41,7 +41,7 @@ async function startWhatsAppSocket() {
             version,
         });
 
-        sock.ev.on('connection.update', (update) => {
+        sock.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect } = update;
             if (connection === 'close') {
                 if (lastDisconnect && lastDisconnect.error) {
@@ -56,6 +56,8 @@ async function startWhatsAppSocket() {
                 }
             } else if (connection === 'open') {
                 console.log('Conexão aberta com sucesso');
+                // Salva as credenciais após a conexão
+                await saveCreds();
             }
         });
 
