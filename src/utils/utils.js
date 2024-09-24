@@ -1,4 +1,4 @@
-// src/utils/utils.js
+// SRC/UTILS/UTILS.JS:
 import axios from 'axios';
 import dotenv from "dotenv";
 import OpenAI from "openai";
@@ -10,16 +10,13 @@ import extensoes from './extensoes.js';
 dotenv.config();
 
 const apiKey = process.env.OPENAI_API_KEY;
-const openai = new OpenAI({
-  apiKey: apiKey
-});
+const openai = new OpenAI();
+
+const messageBuffer = {};
+const messageTimers = {};
+const bufferTime = 5000; // Corrigido para 5000 milissegundos (5 segundos)
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
-
-async function encodeImage(imagePath) {
-  const image = fs.readFileSync(imagePath);
-  return Buffer.from(image).toString('base64');
-}
 
 async function audio(path1, maxRetries = 3, delay = 1000) {
   let attempts = 0;
@@ -44,8 +41,13 @@ async function audio(path1, maxRetries = 3, delay = 1000) {
   return "";
 }
 
+function encodeImage(imagePath) {
+  const image = fs.readFileSync(`${imagePath}`);
+  return Buffer.from(image).toString('base64');
+}
+
 async function transcryptImage(imagePath) {
-  const base64Image = await encodeImage(imagePath);
+  const base64Image = encodeImage(imagePath);
 
   const headers = {
     "Content-Type": "application/json",
@@ -53,14 +55,14 @@ async function transcryptImage(imagePath) {
   };
 
   const payload = {
-    model: "gpt-4o-mini",
+    model: "gpt-4o-mini,
     messages: [
       {
         role: "user",
         content: [
           {
             type: "text",
-            text: "Descreva o que está na imagem."
+            text: `Descreva o que está na imagem.`
           },
           {
             type: "image_url",
@@ -78,7 +80,7 @@ async function transcryptImage(imagePath) {
     const response = await axios.post("https://api.openai.com/v1/chat/completions", payload, { headers });
     return response.data.choices[0].message.content;
   } catch (error) {
-    console.error('Erro:', error.response ? error.response.data : error.message);
+    console.error('Error:', error);
     return "";
   }
 }
@@ -127,19 +129,13 @@ async function query(data) {
     }
   }
 
-  return "Não foi possível processar a solicitação, tente novamente mais tarde.";
+  return "não foi possível processar a solicitação, tente novamente mais tarde";
 }
 
 async function handleMessage(client, message) {
   try {
     let input = '';
     const messageType = Object.keys(message.message)[0];
-
-    // Verifique se a mensagem é do próprio bot
-    if (message.key.fromMe) {
-      console.log('Mensagem recebida do próprio bot, ignorando...');
-      return false; // Ignora mensagens do próprio bot
-    }
 
     switch (messageType) {
       case 'conversation':
@@ -168,18 +164,37 @@ async function handleMessage(client, message) {
       input += " " + await extensoes.quoted(quotedMessage, input);
     }
 
-    // Processar a mensagem com o Flowise
-    const apiResponse = await query({
-      "question": input,
-      "overrideConfig": {
-        "sessionId": message.key.remoteJid
-      }
-    });
+    if (!messageBuffer[message.key.remoteJid]) {
+      messageBuffer[message.key.remoteJid] = [];
+    }
 
-    // Enviar a resposta do Flowise (removendo ':' extras)
-    await client.sendMessage(message.key.remoteJid, {
-      text: apiResponse.text.replace(/$$$$/g, ' ').replace(/$$|$$|$$|$$/g, '').replace(/\*$$/g, "")
-    });
+    messageBuffer[message.key.remoteJid].push(input);
+
+    if (messageTimers[message.key.remoteJid]) {
+      clearTimeout(messageTimers[message.key.remoteJid]);
+    }
+
+    messageTimers[message.key.remoteJid] = setTimeout(async () => {
+      try {
+        const fullMessage = messageBuffer[message.key.remoteJid].join(' ');
+        delete messageBuffer[message.key.remoteJid];
+        delete messageTimers[message.key.remoteJid];
+
+        const apiResponse = await query({
+          "question": fullMessage,
+          "overrideConfig": {
+            "sessionId": message.key.remoteJid
+          }
+        });
+
+        const textoResposta = apiResponse.text.toLowerCase();
+        console.log("Texto da resposta: ", textoResposta);
+
+        await client.sendMessage(message.key.remoteJid, { text: apiResponse.text.replace(/$$$$/g, ': ').replace(/$$|$$|$$|$$/g, '').replace(/\*$$/g, "") });
+      } catch (error) {
+        console.error('Erro ao enviar mensagem:', error);
+      }
+    }, bufferTime);
 
     return true;
   } catch (error) {
@@ -188,4 +203,4 @@ async function handleMessage(client, message) {
   }
 }
 
-export default { audio, transcryptImage, extractAudioFromVideo, query, handleMessage };
+export default { audio, transcryptImage, extractAudioFromVideo, handleMessage };
