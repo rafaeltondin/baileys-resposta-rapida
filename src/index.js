@@ -1,4 +1,4 @@
-// baileys-resposta-rapida-main/src/index.js
+// src/index.js
 
 import { makeWASocket, fetchLatestBaileysVersion, DisconnectReason } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
@@ -12,7 +12,6 @@ dotenv.config();
 
 async function startWhatsAppSocket() {
   try {
-    // Configurações do Banco de Dados
     const dbConfig = {
       host: process.env.DB_HOST,
       user: process.env.DB_USER,
@@ -20,7 +19,6 @@ async function startWhatsAppSocket() {
       database: process.env.DB_NAME,
     };
 
-    // Inicializa o estado de autenticação a partir do MySQL
     const authState = new MySQLAuthState(dbConfig);
     await authState.init();
 
@@ -42,9 +40,9 @@ async function startWhatsAppSocket() {
     sock.ev.on('connection.update', (update) => {
       const { connection, lastDisconnect } = update;
       if (connection === 'close') {
-        if (lastDisconnect && 'error' in lastDisconnect && lastDisconnect.error) {
+        if (lastDisconnect && lastDisconnect.error) {
           const boomError = lastDisconnect.error;
-          const shouldReconnect = boomError.output.statusCode !== DisconnectReason.loggedOut;
+          const shouldReconnect = boomError.output ? boomError.output.statusCode !== DisconnectReason.loggedOut : true;
           console.log('Connection closed due to', boomError, ', reconnecting:', shouldReconnect);
           if (shouldReconnect) {
             startWhatsAppSocket();
