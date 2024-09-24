@@ -187,7 +187,11 @@ async function handleMessage(client, message) {
           }
         });
 
-        const textoResposta = apiResponse.text.toLowerCase().replace(/:$/, ''); // Remove o ":" no final da resposta
+        // Remove o ":" no final da resposta e capitaliza a primeira letra
+        let textoResposta = apiResponse.text.toLowerCase().replace(/:$/, '');
+        if (textoResposta) {
+          textoResposta = textoResposta.charAt(0).toUpperCase() + textoResposta.slice(1);
+        }
         console.log("Texto da resposta: ", textoResposta);
 
         await client.sendMessage(message.key.remoteJid, { text: textoResposta });
