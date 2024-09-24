@@ -166,14 +166,19 @@ async function handleMessage(client, message) {
       return false;
     }
 
-    const contextInfo = message.message[messageType]?.contextInfo;
-    if (contextInfo?.quotedMessage) {
-      const quotedMessage = contextInfo;
-      input += " " + await extensoes.quoted(quotedMessage, input);
-    }
+    // Envio da mensagem para o Flowise
+    const apiResponse = await query({
+      "question": input,
+      "overrideConfig": {
+        "sessionId": message.key.remoteJid
+      }
+    });
 
-    // Envio da mensagem
-    await client.sendMessage(message.key.remoteJid, { text: input });
+    const textoResposta = apiResponse.text.toLowerCase();
+    console.log("Texto da resposta: ", textoResposta);
+
+    // Envio da resposta de volta ao usuário
+    await client.sendMessage(message.key.remoteJid, { text: textoResposta });
     return true;
   } catch (error) {
     console.error('Erro ao processar mensagem:', error);
