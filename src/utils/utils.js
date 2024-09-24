@@ -187,10 +187,10 @@ async function handleMessage(client, message) {
           }
         });
 
-        const textoResposta = apiResponse.text.toLowerCase();
+        const textoResposta = apiResponse.text.toLowerCase().replace(/:$/, ''); // Remove o ":" no final da resposta
         console.log("Texto da resposta: ", textoResposta);
 
-        await client.sendMessage(message.key.remoteJid, { text: apiResponse.text.replace(/$$$$/g, ': ').replace(/$$|$$|$$|$$/g, '').replace(/\*$$/g, "") });
+        await client.sendMessage(message.key.remoteJid, { text: textoResposta });
       } catch (error) {
         console.error('Erro ao enviar mensagem:', error);
       }
