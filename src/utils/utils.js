@@ -54,7 +54,7 @@ async function transcryptImage(imagePath) {
   };
 
   const payload = {
-    model: "gpt-4-vision-mini", // Use o nome correto do modelo conforme a documentação do OpenAI
+    model: "gpt-4o-mini", // Use o nome correto do modelo conforme a documentação do OpenAI
     messages: [
       {
         role: "user",
