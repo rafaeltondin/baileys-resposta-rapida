@@ -132,6 +132,13 @@ async function query(data) {
   return "não foi possível processar a solicitação, tente novamente mais tarde";
 }
 
+function capitalizeSentences(text) {
+  return text
+    .split(/(?<=[.!?])\s+/) // Divide o texto em frases
+    .map(sentence => sentence.charAt(0).toUpperCase() + sentence.slice(1)) // Capitaliza a primeira letra de cada frase
+    .join(' '); // Junta as frases de volta em uma string
+}
+
 async function handleMessage(client, message) {
   try {
     let input = '';
@@ -187,11 +194,9 @@ async function handleMessage(client, message) {
           }
         });
 
-        // Remove o ":" no final da resposta e capitaliza a primeira letra
+        // Remove o ":" no final da resposta e capitaliza a primeira letra de cada frase
         let textoResposta = apiResponse.text.toLowerCase().replace(/:$/, '');
-        if (textoResposta) {
-          textoResposta = textoResposta.charAt(0).toUpperCase() + textoResposta.slice(1);
-        }
+        textoResposta = capitalizeSentences(textoResposta); // Capitaliza as frases
         console.log("Texto da resposta: ", textoResposta);
 
         await client.sendMessage(message.key.remoteJid, { text: textoResposta });
