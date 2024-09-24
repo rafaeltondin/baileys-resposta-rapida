@@ -1,38 +1,15 @@
 // src/index.js
 
-import { makeWASocket, fetchLatestBaileysVersion, DisconnectReason } from '@whiskeysockets/baileys';
+import { makeWASocket, fetchLatestBaileysVersion, useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
 import utils from './utils/utils.js';
 import fs from 'fs';
 import dotenv from 'dotenv';
-import MySQLAuthState from './utils/MySQLAuth.js';
 
 dotenv.config();
 
 async function startWhatsAppSocket() {
     try {
-        const dbConfig = {
-            host: process.env.DB_HOST,
-            user: process.env.DB_USER,
-            password: process.env.DB_PASSWORD,
-            database: process.env.DB_NAME,
-        };
-
-        const authState = new MySQLAuthState(dbConfig);
-        await authState.init();
-
-        // Verifique se o estado de autenticação é válido
-        if (!authState.stateData || !authState.stateData.creds) {
-            console.error('Estado de autenticação inválido. Iniciando um novo.');
-            authState.stateData = { creds: {}, keys: {} };
-        }
-
-        const { state, saveCreds } = {
-            state: authState.stateData,
-            saveCreds: async () => {
-                await authState.saveState();
-            }
-        };
-
+        const { state, saveCreds } = await useMultiFileAuthState('./auth_info');
         const { version } = await fetchLatestBaileysVersion();
 
         const sock = makeWASocket({
@@ -41,40 +18,34 @@ async function startWhatsAppSocket() {
             version,
         });
 
-        sock.ev.on('connection.update', async (update) => {
+        sock.ev.on('connection.update', (update) => {
             const { connection, lastDisconnect } = update;
             if (connection === 'close') {
-                if (lastDisconnect && lastDisconnect.error) {
+                if (lastDisconnect && 'error' in lastDisconnect && lastDisconnect.error) {
                     const boomError = lastDisconnect.error;
-                    const shouldReconnect = boomError.output ? boomError.output.statusCode !== DisconnectReason.loggedOut : true;
-                    console.log('Connection closed due to', boomError, ', reconnecting:', shouldReconnect);
+                    const shouldReconnect = boomError.output.statusCode !== DisconnectReason.loggedOut;
+                    console.log('connection closed due to ', boomError, ', reconnecting ', shouldReconnect);
                     if (shouldReconnect) {
                         startWhatsAppSocket();
-                    } else {
-                        console.log('Desconectado permanentemente');
                     }
                 }
             } else if (connection === 'open') {
-                console.log('Conexão aberta com sucesso');
-                // Salva as credenciais após a conexão
-                await saveCreds();
+                console.log('opened connection');
             }
         });
 
         sock.ev.on('messages.upsert', async ({ messages }) => {
             const message = messages[0];
-            if (message.message) { // Verifica se a mensagem existe
-                console.log(JSON.stringify(message, undefined, 2));
-                if (!message.key.fromMe) {
-                    console.log('Respondendo para', message.key.remoteJid);
-                    await utils.handleMessage(sock, message);
-                }
+            console.log(JSON.stringify(message, undefined, 2));
+            if (!message.key.fromMe) {
+                console.log('replying to', message.key.remoteJid);
+                await utils.handleMessage(sock, message);
             }
         });
 
         sock.ev.on('creds.update', saveCreds);
 
-        // Cria as pastas necessárias se não existirem
+        // Criar as pastas necessárias se não existirem
         const folders = ['audio', 'video', 'images'];
         for (const folder of folders) {
             if (!fs.existsSync(folder)) {
@@ -82,7 +53,7 @@ async function startWhatsAppSocket() {
             }
         }
     } catch (error) {
-        console.error('Falha ao iniciar o socket do WhatsApp:', error);
+        console.error('Failed to start WhatsApp socket:', error);
     }
 }
 
