@@ -4,10 +4,33 @@ import utils from './utils/utils.js';
 import fs from 'fs';
 import path from 'path';
 
+// Função para salvar as informações da sessão em um arquivo JSON
+function saveSessionInfo(sessionInfo) {
+  const sessionFilePath = path.join('./auth_info', 'session_info.json');
+  fs.writeFileSync(sessionFilePath, JSON.stringify(sessionInfo, null, 2));
+}
+
+// Função para carregar as informações da sessão de um arquivo JSON
+function loadSessionInfo() {
+  const sessionFilePath = path.join('./auth_info', 'session_info.json');
+  if (fs.existsSync(sessionFilePath)) {
+    const sessionInfo = fs.readFileSync(sessionFilePath, 'utf-8');
+    return JSON.parse(sessionInfo);
+  }
+  return null;
+}
+
 async function startWhatsAppSocket() {
   try {
     const { state, saveCreds } = await useMultiFileAuthState('./auth_info');
     const { version } = await fetchLatestBaileysVersion();
+
+    // Carregar informações da sessão, se existirem
+    const sessionInfo = loadSessionInfo();
+    if (sessionInfo) {
+      console.log('Restaurando sessão...');
+      // Aqui você pode restaurar as informações da sessão, se necessário
+    }
 
     const sock = makeWASocket({
       printQRInTerminal: true,
@@ -28,6 +51,12 @@ async function startWhatsAppSocket() {
         }
       } else if (connection === 'open') {
         console.log('opened connection');
+        // Salvar informações da sessão quando a conexão é aberta
+        saveSessionInfo({
+          state: state,
+          version: version,
+          // Adicione outras informações que você deseja salvar
+        });
       }
     });
 
