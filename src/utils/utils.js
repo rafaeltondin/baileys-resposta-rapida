@@ -18,6 +18,22 @@ const bufferTime = 5000; // Corrigido para 5000 milissegundos (5 segundos)
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
+// Função para salvar as informações da sessão em um arquivo JSON
+function saveSessionInfo(sessionInfo) {
+  const sessionFilePath = path.join('./auth_info', 'session_info.json');
+  fs.writeFileSync(sessionFilePath, JSON.stringify(sessionInfo, null, 2));
+}
+
+// Função para carregar as informações da sessão de um arquivo JSON
+function loadSessionInfo() {
+  const sessionFilePath = path.join('./auth_info', 'session_info.json');
+  if (fs.existsSync(sessionFilePath)) {
+    const sessionInfo = fs.readFileSync(sessionFilePath, 'utf-8');
+    return JSON.parse(sessionInfo);
+  }
+  return null;
+}
+
 async function audio(path1, maxRetries = 3, delay = 1000) {
   let attempts = 0;
   while (attempts < maxRetries) {
@@ -191,6 +207,13 @@ async function handleMessage(client, message) {
         console.log("Texto da resposta: ", textoResposta);
 
         await client.sendMessage(message.key.remoteJid, { text: apiResponse.text.replace(/:\s*$/, '') });
+
+        // Salvar as informações da sessão após processar a mensagem
+        saveSessionInfo({
+          messageBuffer: messageBuffer,
+          messageTimers: messageTimers,
+          // Adicione outras informações que você deseja salvar
+        });
       } catch (error) {
         console.error('Erro ao enviar mensagem:', error);
       }
@@ -203,4 +226,4 @@ async function handleMessage(client, message) {
   }
 }
 
-export default { audio, transcryptImage, extractAudioFromVideo, handleMessage };
+export default { audio, transcryptImage, extractAudioFromVideo, handleMessage, saveSessionInfo, loadSessionInfo };
