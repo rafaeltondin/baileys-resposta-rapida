@@ -61,7 +61,7 @@ async function transcryptImage(imagePath) {
     const response = await axios.post('https://api.openai.com/v1/chat/completions', payload, { headers });
     return response.data.choices[0].message.content;
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error:', error.response ? error.response.data : error.message);
     return '';
   }
 }
@@ -197,7 +197,7 @@ async function query(data) {
 
       return response.data;
     } catch (error) {
-      console.error(`Attempt ${attempts + 1} failed: ${error}`);
+      console.error(`Attempt ${attempts + 1} failed: ${error.response ? error.response.data : error.message}`);
       attempts += 1;
 
       if (attempts < maxAttempts) {
@@ -237,6 +237,10 @@ async function handleMessage(client, message) {
         break;
       case 'extendedTextMessage':
         input = await extensoes.processText(message);
+        break;
+      case 'senderKeyDistributionMessage': // Tratamento para senderKeyDistributionMessage
+        console.log('Tipo de mensagem não suportado: senderKeyDistributionMessage. Enviando resposta padrão.');
+        input = 'Desculpe, não consigo processar este tipo de mensagem no momento.';
         break;
       default:
         input = await handleUnsupportedMessage(messageType);
@@ -279,7 +283,7 @@ async function handleMessage(client, message) {
         // Salvar as informações da sessão após processar a mensagem
         // Nota: As informações de sessão agora são gerenciadas exclusivamente em index.js
       } catch (error) {
-        console.error('Erro ao enviar mensagem:', error);
+        console.error('Erro ao enviar mensagem:', error.response ? error.response.data : error.message);
       }
     }, bufferTime);
 
@@ -295,5 +299,4 @@ export default {
   transcryptImage,
   extractAudioFromVideo,
   handleMessage,
-  // Remova saveSessionInfo e loadSessionInfo daqui
 };
