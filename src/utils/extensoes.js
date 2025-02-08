@@ -1,12 +1,12 @@
-import * as path from 'path';
-import * as fs from 'fs/promises';
-import * as mime from 'mime-types';
+// src/utils/extensoes.js
 import { downloadMediaMessage } from '@whiskeysockets/baileys';
 import utils from './utils.js';
+import mime from 'mime-types';
+import path from 'path';
 
 async function saveMediaFile(buffer, fileName) {
   const filePath = path.join(fileName);
-  await fs.writeFile(filePath, buffer);
+  await fs.promises.writeFile(filePath, buffer);
   return filePath;
 }
 
@@ -34,7 +34,7 @@ async function processImage(message) {
   const imageFileName = `images/${message.key.id}.${mime.extension(message.message.imageMessage.mimetype)}`;
   const imageFilePath = await saveMediaFile(buffer, imageFileName);
   const imgTranscription = await utils.transcryptImage(imageFilePath);
-  return `Tente encontrar os produtos mais similares a descrição a seguir:${imgTranscription}`;
+  return `Tente encontrar os produtos mais similares a descrição a seguir: ${imgTranscription}`;
 }
 
 async function processAudio(message) {
@@ -57,16 +57,24 @@ async function quoted(contextInfo, primaryMessage) {
   const quotedMessage = contextInfo.quotedMessage;
 
   if (contextInfo.participant === "554797653226@s.whatsapp.net") {
-    quotedText = quotedMessage.conversation;
-    response = `mensagem atual ${primaryMessage} \n mensagem recuperada: ${quotedText}  `;
+    quotedText = quotedMessage.conversation || quotedMessage.extendedTextMessage?.text || '';
+    response = `Mensagem atual: ${primaryMessage}\nMensagem recuperada: ${quotedText}`;
   } else if (quotedMessage?.extendedTextMessage) {
     quotedText = quotedMessage.extendedTextMessage.text;
-    response = `mensagem atual ${primaryMessage} \n mensagem recuperada: ${quotedText}  `;
+    response = `Mensagem atual: ${primaryMessage}\nMensagem recuperada: ${quotedText}`;
+  } else if (quotedMessage?.conversation) {
+    quotedText = quotedMessage.conversation;
+    response = `Mensagem atual: ${primaryMessage}\nMensagem recuperada: ${quotedText}`;
   } else {
-    console.log("fileSha256 não está disponível para a mensagem citada.");
+    console.log("Tipo de mensagem citada não suportado.");
   }
   console.log(response.trim());
   return response.trim();
 }
 
-export default { processText, processAudio, processImage, processVideo, quoted };
+async function handleUnsupportedMessage(messageType) {
+  console.log(`Tipo de mensagem não suportado: ${messageType}. Enviando resposta padrão.`);
+  return 'Desculpe, não consigo processar este tipo de mensagem no momento.';
+}
+
+export default { processText, processAudio, processImage, processVideo, quoted, handleUnsupportedMessage };
