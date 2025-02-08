@@ -1,27 +1,18 @@
-// src/index.js
 import { makeWASocket, fetchLatestBaileysVersion, useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import utils from './utils/utils.js';
 import fs from 'fs';
 import path from 'path';
-import dotenv from 'dotenv';
-import { fileURLToPath } from 'url';
-
-// Definição de __dirname em módulos ES
-const __filename = fileURLToPath(import.meta.url);
-const __dirnamePath = path.dirname(__filename);
-
-dotenv.config();
 
 // Função para salvar as informações da sessão em um arquivo JSON
 function saveSessionInfo(sessionInfo) {
-  const sessionFilePath = path.join(__dirnamePath, 'auth_info', 'session_info.json');
+  const sessionFilePath = path.join('./auth_info', 'session_info.json');
   fs.writeFileSync(sessionFilePath, JSON.stringify(sessionInfo, null, 2));
 }
 
 // Função para carregar as informações da sessão de um arquivo JSON
 function loadSessionInfo() {
-  const sessionFilePath = path.join(__dirnamePath, 'auth_info', 'session_info.json');
+  const sessionFilePath = path.join('./auth_info', 'session_info.json');
   if (fs.existsSync(sessionFilePath)) {
     const sessionInfo = fs.readFileSync(sessionFilePath, 'utf-8');
     return JSON.parse(sessionInfo);
@@ -29,21 +20,17 @@ function loadSessionInfo() {
   return null;
 }
 
-// Manipuladores para evitar que erros não capturados finalizem o processo
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  // Opcional: Reiniciar o socket ou tomar outra ação
-});
-
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception thrown:', error);
-  // Opcional: Reiniciar o socket ou tomar outra ação
-});
-
 async function startWhatsAppSocket() {
   try {
-    const { state, saveCreds } = await useMultiFileAuthState(path.join(__dirnamePath, 'auth_info'));
+    const { state, saveCreds } = await useMultiFileAuthState('./auth_info');
     const { version } = await fetchLatestBaileysVersion();
+
+    // Carregar informações da sessão, se existirem
+    const sessionInfo = loadSessionInfo();
+    if (sessionInfo) {
+      console.log('Restaurando sessão...');
+      // Aqui você pode restaurar as informações da sessão, se necessário
+    }
 
     const sock = makeWASocket({
       printQRInTerminal: true,
@@ -64,7 +51,7 @@ async function startWhatsAppSocket() {
         }
       } else if (connection === 'open') {
         console.log('opened connection');
-        // Salvar informações da sessão exclusiva
+        // Salvar informações da sessão quando a conexão é aberta
         saveSessionInfo({
           state: state,
           version: version,
@@ -76,15 +63,7 @@ async function startWhatsAppSocket() {
     sock.ev.on('messages.upsert', async ({ messages }) => {
       const message = messages[0];
       console.log(JSON.stringify(message, undefined, 2));
-
-      const allowedNumbers = ['555499000753@s.whatsapp.net'];
-
-      const isFromAllowedNumber = allowedNumbers.includes(message.key.participant) ||
-                                  allowedNumbers.includes(message.key.remoteJid);
-
-      const isGroupMessage = message.key.remoteJid?.endsWith('@g.us');
-
-      if (!message.key.fromMe && (isFromAllowedNumber || !isGroupMessage)) {
+      if (!message.key.fromMe) {
         console.log('replying to', message.key.remoteJid);
         await utils.handleMessage(sock, message);
       }
@@ -93,11 +72,10 @@ async function startWhatsAppSocket() {
     sock.ev.on('creds.update', saveCreds);
 
     // Criar as pastas necessárias se não existirem
-    const mediaFolders = ['audio', 'video', 'images'];
-    for (const folder of mediaFolders) {
-      const folderPath = path.join(__dirnamePath, folder);
-      if (!fs.existsSync(folderPath)) {
-        fs.mkdirSync(folderPath, { recursive: true });
+    const folders = ['audio', 'video', 'images'];
+    for (const folder of folders) {
+      if (!fs.existsSync(folder)) {
+        fs.mkdirSync(folder);
       }
     }
   } catch (error) {
