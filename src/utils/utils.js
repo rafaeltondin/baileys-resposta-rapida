@@ -1,4 +1,5 @@
 // src/utils/utils.js
+import path from 'path'; // Adicionar esta linha
 import axios from 'axios';
 import dotenv from "dotenv";
 import OpenAI from "openai";
