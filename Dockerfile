@@ -1,7 +1,7 @@
 # Use a imagem base do Node.js com a versão mais recente
 FROM node:latest
 
-# Atualize e instale dependências do sistema
+# Atualize o gerenciador de pacotes e instale dependências do sistema
 RUN apt-get update && apt-get install -y ffmpeg
 
 # Defina o diretório de trabalho dentro do contêiner
