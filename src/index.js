@@ -24,17 +24,21 @@ function loadSessionInfo() {
   return null;
 }
 
+// Manipuladores para evitar que erros não capturados finalizem o processo
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Opcional: Reiniciar o socket ou tomar outra ação
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception thrown:', error);
+  // Opcional: Reiniciar o socket ou tomar outra ação
+});
+
 async function startWhatsAppSocket() {
   try {
     const { state, saveCreds } = await useMultiFileAuthState('./auth_info');
     const { version } = await fetchLatestBaileysVersion();
-
-    // Carregar informações da sessão, se existirem
-    const sessionInfo = loadSessionInfo();
-    if (sessionInfo) {
-      console.log('Restaurando sessão...');
-      // Aqui você pode restaurar as informações da sessão, se necessário
-    }
 
     const sock = makeWASocket({
       printQRInTerminal: true,
@@ -55,7 +59,7 @@ async function startWhatsAppSocket() {
         }
       } else if (connection === 'open') {
         console.log('opened connection');
-        // Salvar informações da sessão quando a conexão é aberta
+        // Salvar informações da sessão exclusiva
         saveSessionInfo({
           state: state,
           version: version,
@@ -68,9 +72,10 @@ async function startWhatsAppSocket() {
       const message = messages[0];
       console.log(JSON.stringify(message, undefined, 2));
 
-      // Verificar se a mensagem é permitida
-      const isFromAllowedNumber = message.key.participant === '555499000753@s.whatsapp.net' ||
-                                 message.key.remoteJid === '555499000753@s.whatsapp.net';
+      const allowedNumbers = ['555499000753@s.whatsapp.net'];
+
+      const isFromAllowedNumber = allowedNumbers.includes(message.key.participant) ||
+                                  allowedNumbers.includes(message.key.remoteJid);
 
       const isGroupMessage = message.key.remoteJid?.endsWith('@g.us');
 
@@ -83,10 +88,11 @@ async function startWhatsAppSocket() {
     sock.ev.on('creds.update', saveCreds);
 
     // Criar as pastas necessárias se não existirem
-    const folders = ['audio', 'video', 'images'];
-    for (const folder of folders) {
-      if (!fs.existsSync(folder)) {
-        fs.mkdirSync(folder);
+    const mediaFolders = ['audio', 'video', 'images'];
+    for (const folder of mediaFolders) {
+      const folderPath = path.join(__dirname, folder);
+      if (!fs.existsSync(folderPath)) {
+        fs.mkdirSync(folderPath, { recursive: true });
       }
     }
   } catch (error) {
