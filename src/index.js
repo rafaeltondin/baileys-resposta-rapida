@@ -5,18 +5,23 @@ import utils from './utils/utils.js';
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+
+// Definição de __dirname em módulos ES
+const __filename = fileURLToPath(import.meta.url);
+const __dirnamePath = path.dirname(__filename);
 
 dotenv.config();
 
 // Função para salvar as informações da sessão em um arquivo JSON
 function saveSessionInfo(sessionInfo) {
-  const sessionFilePath = path.join('./auth_info', 'session_info.json');
+  const sessionFilePath = path.join(__dirnamePath, 'auth_info', 'session_info.json');
   fs.writeFileSync(sessionFilePath, JSON.stringify(sessionInfo, null, 2));
 }
 
 // Função para carregar as informações da sessão de um arquivo JSON
 function loadSessionInfo() {
-  const sessionFilePath = path.join('./auth_info', 'session_info.json');
+  const sessionFilePath = path.join(__dirnamePath, 'auth_info', 'session_info.json');
   if (fs.existsSync(sessionFilePath)) {
     const sessionInfo = fs.readFileSync(sessionFilePath, 'utf-8');
     return JSON.parse(sessionInfo);
@@ -37,7 +42,7 @@ process.on('uncaughtException', (error) => {
 
 async function startWhatsAppSocket() {
   try {
-    const { state, saveCreds } = await useMultiFileAuthState('./auth_info');
+    const { state, saveCreds } = await useMultiFileAuthState(path.join(__dirnamePath, 'auth_info'));
     const { version } = await fetchLatestBaileysVersion();
 
     const sock = makeWASocket({
@@ -90,7 +95,7 @@ async function startWhatsAppSocket() {
     // Criar as pastas necessárias se não existirem
     const mediaFolders = ['audio', 'video', 'images'];
     for (const folder of mediaFolders) {
-      const folderPath = path.join(__dirname, folder);
+      const folderPath = path.join(__dirnamePath, folder);
       if (!fs.existsSync(folderPath)) {
         fs.mkdirSync(folderPath, { recursive: true });
       }
