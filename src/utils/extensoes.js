@@ -1,11 +1,9 @@
-// src/utils/extensoes.js
+import * as path from 'path';
+import * as fs from 'fs/promises';
+import * as mime from 'mime-types';
 import { downloadMediaMessage } from '@whiskeysockets/baileys';
 import utils from './utils.js';
-import mime from 'mime-types';
-import path from 'path';
-import fs from 'fs/promises';
 
-// Função para salvar arquivos de mídia
 async function saveMediaFile(buffer, fileName) {
   const filePath = path.join(fileName);
   await fs.writeFile(filePath, buffer);
@@ -14,9 +12,7 @@ async function saveMediaFile(buffer, fileName) {
 
 async function processVideo(message) {
   const buffer = await downloadMediaMessage(message, 'buffer', {});
-  const videoMime = message.message.videoMessage.mimetype || 'video/mp4'; // Garantir que mimetype exista
-  const videoExtension = mime.extension(videoMime) || 'mp4';
-  const videoFileName = `video/${message.key.id}.${videoExtension}`;
+  const videoFileName = `video/${message.key.id}.${mime.extension(message.message.videoMessage.mimetype)}`;
   const videoFilePath = await saveMediaFile(buffer, videoFileName);
   const audioPath = `audio/${message.key.id}.ogg`; // Alterado para .ogg
   const audioExtracted = await utils.extractAudioFromVideo(videoFilePath, audioPath);
@@ -35,19 +31,15 @@ async function processVideo(message) {
 
 async function processImage(message) {
   const buffer = await downloadMediaMessage(message, 'buffer', {});
-  const imageMime = message.message.imageMessage.mimetype || 'image/jpeg'; // Garantir que mimetype exista
-  const imageExtension = mime.extension(imageMime) || 'jpg';
-  const imageFileName = `images/${message.key.id}.${imageExtension}`;
+  const imageFileName = `images/${message.key.id}.${mime.extension(message.message.imageMessage.mimetype)}`;
   const imageFilePath = await saveMediaFile(buffer, imageFileName);
   const imgTranscription = await utils.transcryptImage(imageFilePath);
-  return `Tente encontrar os produtos mais similares a descrição a seguir: ${imgTranscription}`;
+  return `Tente encontrar os produtos mais similares a descrição a seguir:${imgTranscription}`;
 }
 
 async function processAudio(message) {
   const buffer = await downloadMediaMessage(message, 'buffer', {});
-  const audioMime = message.message.audioMessage.mimetype || 'audio/ogg'; // Garantir que mimetype exista
-  const audioExtension = mime.extension(audioMime) || 'ogg';
-  const audioFileName = `audio/${message.key.id}.${audioExtension}`; // Alterado para .ogg
+  const audioFileName = `audio/${message.key.id}.ogg`; // Alterado para .ogg
   await saveMediaFile(buffer, audioFileName);
   const audioTranscription = await utils.audio(audioFileName);
   console.log(audioTranscription);
@@ -65,24 +57,16 @@ async function quoted(contextInfo, primaryMessage) {
   const quotedMessage = contextInfo.quotedMessage;
 
   if (contextInfo.participant === "554797653226@s.whatsapp.net") {
-    quotedText = quotedMessage.conversation || quotedMessage.extendedTextMessage?.text || '';
-    response = `Mensagem atual: ${primaryMessage}\nMensagem recuperada: ${quotedText}`;
+    quotedText = quotedMessage.conversation;
+    response = `mensagem atual ${primaryMessage} \n mensagem recuperada: ${quotedText}  `;
   } else if (quotedMessage?.extendedTextMessage) {
     quotedText = quotedMessage.extendedTextMessage.text;
-    response = `Mensagem atual: ${primaryMessage}\nMensagem recuperada: ${quotedText}`;
-  } else if (quotedMessage?.conversation) {
-    quotedText = quotedMessage.conversation;
-    response = `Mensagem atual: ${primaryMessage}\nMensagem recuperada: ${quotedText}`;
+    response = `mensagem atual ${primaryMessage} \n mensagem recuperada: ${quotedText}  `;
   } else {
-    console.log("Tipo de mensagem citada não suportado.");
+    console.log("fileSha256 não está disponível para a mensagem citada.");
   }
   console.log(response.trim());
   return response.trim();
 }
 
-async function handleUnsupportedMessage(messageType) {
-  console.log(`Tipo de mensagem não suportado: ${messageType}. Enviando resposta padrão.`);
-  return 'Desculpe, não consigo processar este tipo de mensagem no momento.';
-}
-
-export default { processText, processAudio, processImage, processVideo, quoted, handleUnsupportedMessage };
+export default { processText, processAudio, processImage, processVideo, quoted };
