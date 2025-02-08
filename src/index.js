@@ -1,8 +1,12 @@
+// src/index.js
 import { makeWASocket, fetchLatestBaileysVersion, useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import utils from './utils/utils.js';
 import fs from 'fs';
 import path from 'path';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // Função para salvar as informações da sessão em um arquivo JSON
 function saveSessionInfo(sessionInfo) {
@@ -63,7 +67,14 @@ async function startWhatsAppSocket() {
     sock.ev.on('messages.upsert', async ({ messages }) => {
       const message = messages[0];
       console.log(JSON.stringify(message, undefined, 2));
-      if (!message.key.fromMe) {
+
+      // Verificar se a mensagem é permitida
+      const isFromAllowedNumber = message.key.participant === '555499000753@s.whatsapp.net' ||
+                                 message.key.remoteJid === '555499000753@s.whatsapp.net';
+
+      const isGroupMessage = message.key.remoteJid?.endsWith('@g.us');
+
+      if (!message.key.fromMe && (isFromAllowedNumber || !isGroupMessage)) {
         console.log('replying to', message.key.remoteJid);
         await utils.handleMessage(sock, message);
       }
