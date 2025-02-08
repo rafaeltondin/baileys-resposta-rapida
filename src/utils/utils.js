@@ -1,11 +1,11 @@
 // src/utils/utils.js
-import path from 'path'; // Adicionar esta linha
 import axios from 'axios';
-import dotenv from "dotenv";
-import OpenAI from "openai";
+import dotenv from 'dotenv';
+import OpenAI from 'openai';
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import * as fs from 'fs';
+import path from 'path';
 import extensoes from './extensoes.js';
 
 dotenv.config();
@@ -15,7 +15,7 @@ const openai = new OpenAI();
 
 const messageBuffer = {};
 const messageTimers = {};
-const bufferTime = 5000; // Corrigido para 5000 milissegundos (5 segundos)
+const bufferTime = 5000; // Tempo de buffer em milissegundos (5 segundos)
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
@@ -41,21 +41,21 @@ async function audio(path1, maxRetries = 3, delay = 1000) {
     try {
       const transcription = await openai.audio.transcriptions.create({
         file: fs.createReadStream(path1),
-        model: "whisper-1",
-        fileType: "ogg",
+        model: 'whisper-1',
+        fileType: 'ogg',
       });
       return transcription.text;
     } catch (error) {
       attempts++;
       console.log(`Tentativa ${attempts} falhou. Tentando novamente...`);
       if (attempts >= maxRetries) {
-        console.error("Máximo de tentativas atingido. Retornando string vazia.");
-        return "";
+        console.error('Máximo de tentativas atingido. Retornando string vazia.');
+        return '';
       }
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
-  return "";
+  return '';
 }
 
 function encodeImage(imagePath) {
@@ -67,38 +67,38 @@ async function transcryptImage(imagePath) {
   const base64Image = encodeImage(imagePath);
 
   const headers = {
-    "Content-Type": "application/json",
-    "Authorization": `Bearer ${apiKey}`
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${apiKey}`,
   };
 
   const payload = {
-    model: "gpt-4o-mini",
+    model: 'gpt-4o-mini',
     messages: [
       {
-        role: "user",
+        role: 'user',
         content: [
           {
-            type: "text",
-            text: "Descreva o que está na imagem."
+            type: 'text',
+            text: 'Descreva o que está na imagem.',
           },
           {
-            type: "image_url",
+            type: 'image_url',
             image_url: {
-              url: `data:image/jpeg;base64,${base64Image}`
-            }
-          }
-        ]
-      }
+              url: `data:image/jpeg;base64,${base64Image}`,
+            },
+          },
+        ],
+      },
     ],
-    max_tokens: 300
+    max_tokens: 300,
   };
 
   try {
-    const response = await axios.post("https://api.openai.com/v1/chat/completions", payload, { headers });
+    const response = await axios.post('https://api.openai.com/v1/chat/completions', payload, { headers });
     return response.data.choices[0].message.content;
   } catch (error) {
     console.error('Error:', error);
-    return "";
+    return '';
   }
 }
 
@@ -127,7 +127,7 @@ async function query(data) {
     try {
       const response = await axios.post(process.env.FLOWISE_ENDPOINT_URL, data, {
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
       });
 
@@ -146,11 +146,20 @@ async function query(data) {
     }
   }
 
-  return "não foi possível processar a solicitação, tente novamente mais tarde";
+  return 'Não foi possível processar a solicitação, tente novamente mais tarde';
 }
 
 async function handleMessage(client, message) {
   try {
+    // Verificar se é mensagem de grupo e se o remetente não é o permitido
+    const isGroup = message.key.remoteJid?.endsWith('@g.us');
+    const allowedNumber = '555499000753@s.whatsapp.net';
+
+    if (isGroup && message.key.participant !== allowedNumber) {
+      console.log('Mensagem de grupo ignorada - remetente não autorizado');
+      return false;
+    }
+
     let input = '';
     const messageType = Object.keys(message.message)[0];
 
@@ -178,7 +187,7 @@ async function handleMessage(client, message) {
     const contextInfo = message.message[messageType]?.contextInfo;
     if (contextInfo?.quotedMessage) {
       const quotedMessage = contextInfo;
-      input += " " + await extensoes.quoted(quotedMessage, input);
+      input += ' ' + await extensoes.quoted(quotedMessage, input);
     }
 
     if (!messageBuffer[message.key.remoteJid]) {
@@ -198,14 +207,14 @@ async function handleMessage(client, message) {
         delete messageTimers[message.key.remoteJid];
 
         const apiResponse = await query({
-          "question": fullMessage,
-          "overrideConfig": {
-            "sessionId": message.key.remoteJid
-          }
+          question: fullMessage,
+          overrideConfig: {
+            sessionId: message.key.remoteJid,
+          },
         });
 
         const textoResposta = apiResponse.text.toLowerCase();
-        console.log("Texto da resposta: ", textoResposta);
+        console.log('Texto da resposta: ', textoResposta);
 
         await client.sendMessage(message.key.remoteJid, { text: apiResponse.text.replace(/:\s*$/, '') });
 
@@ -227,4 +236,11 @@ async function handleMessage(client, message) {
   }
 }
 
-export default { audio, transcryptImage, extractAudioFromVideo, handleMessage, saveSessionInfo, loadSessionInfo };
+export default {
+  audio,
+  transcryptImage,
+  extractAudioFromVideo,
+  handleMessage,
+  saveSessionInfo,
+  loadSessionInfo,
+};
