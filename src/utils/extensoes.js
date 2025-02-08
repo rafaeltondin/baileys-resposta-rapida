@@ -3,16 +3,20 @@ import { downloadMediaMessage } from '@whiskeysockets/baileys';
 import utils from './utils.js';
 import mime from 'mime-types';
 import path from 'path';
+import fs from 'fs/promises';
 
+// Função para salvar arquivos de mídia
 async function saveMediaFile(buffer, fileName) {
   const filePath = path.join(fileName);
-  await fs.promises.writeFile(filePath, buffer);
+  await fs.writeFile(filePath, buffer);
   return filePath;
 }
 
 async function processVideo(message) {
   const buffer = await downloadMediaMessage(message, 'buffer', {});
-  const videoFileName = `video/${message.key.id}.${mime.extension(message.message.videoMessage.mimetype)}`;
+  const videoMime = message.message.videoMessage.mimetype || 'video/mp4'; // Garantir que mimetype exista
+  const videoExtension = mime.extension(videoMime) || 'mp4';
+  const videoFileName = `video/${message.key.id}.${videoExtension}`;
   const videoFilePath = await saveMediaFile(buffer, videoFileName);
   const audioPath = `audio/${message.key.id}.ogg`; // Alterado para .ogg
   const audioExtracted = await utils.extractAudioFromVideo(videoFilePath, audioPath);
@@ -31,7 +35,9 @@ async function processVideo(message) {
 
 async function processImage(message) {
   const buffer = await downloadMediaMessage(message, 'buffer', {});
-  const imageFileName = `images/${message.key.id}.${mime.extension(message.message.imageMessage.mimetype)}`;
+  const imageMime = message.message.imageMessage.mimetype || 'image/jpeg'; // Garantir que mimetype exista
+  const imageExtension = mime.extension(imageMime) || 'jpg';
+  const imageFileName = `images/${message.key.id}.${imageExtension}`;
   const imageFilePath = await saveMediaFile(buffer, imageFileName);
   const imgTranscription = await utils.transcryptImage(imageFilePath);
   return `Tente encontrar os produtos mais similares a descrição a seguir: ${imgTranscription}`;
@@ -39,7 +45,9 @@ async function processImage(message) {
 
 async function processAudio(message) {
   const buffer = await downloadMediaMessage(message, 'buffer', {});
-  const audioFileName = `audio/${message.key.id}.ogg`; // Alterado para .ogg
+  const audioMime = message.message.audioMessage.mimetype || 'audio/ogg'; // Garantir que mimetype exista
+  const audioExtension = mime.extension(audioMime) || 'ogg';
+  const audioFileName = `audio/${message.key.id}.${audioExtension}`; // Alterado para .ogg
   await saveMediaFile(buffer, audioFileName);
   const audioTranscription = await utils.audio(audioFileName);
   console.log(audioTranscription);
