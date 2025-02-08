@@ -11,7 +11,9 @@ import extensoes from './extensoes.js';
 dotenv.config();
 
 const apiKey = process.env.OPENAI_API_KEY;
-const openai = new OpenAI();
+const openai = new OpenAI({
+  apiKey: apiKey,
+});
 
 const messageBuffer = {};
 const messageTimers = {};
@@ -19,45 +21,7 @@ const bufferTime = 5000; // Tempo de buffer em milissegundos (5 segundos)
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
-// Função para salvar as informações da sessão em um arquivo JSON
-function saveSessionInfo(sessionInfo) {
-  const sessionFilePath = path.join('./auth_info', 'session_info.json');
-  fs.writeFileSync(sessionFilePath, JSON.stringify(sessionInfo, null, 2));
-}
-
-// Função para carregar as informações da sessão de um arquivo JSON
-function loadSessionInfo() {
-  const sessionFilePath = path.join('./auth_info', 'session_info.json');
-  if (fs.existsSync(sessionFilePath)) {
-    const sessionInfo = fs.readFileSync(sessionFilePath, 'utf-8');
-    return JSON.parse(sessionInfo);
-  }
-  return null;
-}
-
-async function audio(path1, maxRetries = 3, delay = 1000) {
-  let attempts = 0;
-  while (attempts < maxRetries) {
-    try {
-      const transcription = await openai.audio.transcriptions.create({
-        file: fs.createReadStream(path1),
-        model: 'whisper-1',
-        fileType: 'ogg',
-      });
-      return transcription.text;
-    } catch (error) {
-      attempts++;
-      console.log(`Tentativa ${attempts} falhou. Tentando novamente...`);
-      if (attempts >= maxRetries) {
-        console.error('Máximo de tentativas atingido. Retornando string vazia.');
-        return '';
-      }
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
-  }
-  return '';
-}
-
+// Função para codificar imagem em base64
 function encodeImage(imagePath) {
   const image = fs.readFileSync(imagePath);
   return Buffer.from(image).toString('base64');
@@ -72,7 +36,7 @@ async function transcryptImage(imagePath) {
   };
 
   const payload = {
-    model: 'gpt-4o-mini',
+    model: 'gpt-4', // Correção do modelo
     messages: [
       {
         role: 'user',
@@ -119,6 +83,102 @@ async function extractAudioFromVideo(videoFilePath, audioOutputPath) {
   });
 }
 
+async function audio(path1, maxRetries = 3, delay = 1000) {
+  let attempts = 0;
+  while (attempts < maxRetries) {
+    try {
+      const transcription = await openai.audio.transcriptions.create({
+        file: fs.createReadStream(path1),
+        model: 'whisper-1',
+        fileType: 'ogg',
+      });
+      return transcription.text;
+    } catch (error) {
+      attempts++;
+      console.log(`Tentativa ${attempts} falhou. Tentando novamente...`);
+      if (attempts >= maxRetries) {
+        console.error('Máximo de tentativas atingido. Retornando string vazia.');
+        return '';
+      }
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+  return '';
+}
+
+async function saveMediaFile(buffer, fileName) {
+  const filePath = path.join(fileName);
+  await fs.promises.writeFile(filePath, buffer);
+  return filePath;
+}
+
+async function processVideo(message) {
+  const buffer = await downloadMediaMessage(message, 'buffer', {});
+  const videoFileName = `video/${message.key.id}.${mime.extension(message.message.videoMessage.mimetype)}`;
+  const videoFilePath = await saveMediaFile(buffer, videoFileName);
+  const audioPath = `audio/${message.key.id}.ogg`; // Alterado para .ogg
+  const audioExtracted = await extractAudioFromVideo(videoFilePath, audioPath);
+  if (!audioExtracted) {
+    console.log("Este vídeo não contém áudio ou o áudio não pôde ser extraído.");
+    return "audio não processado";
+  } else {
+    const transcription = await audio(audioPath);
+    if (transcription.trim() === '') {
+      return "O áudio extraído não pôde ser transcrevido. Responda de acordo com o contexto da conversa.";
+    } else {
+      return transcription;
+    }
+  }
+}
+
+async function processImage(message) {
+  const buffer = await downloadMediaMessage(message, 'buffer', {});
+  const imageFileName = `images/${message.key.id}.${mime.extension(message.message.imageMessage.mimetype)}`;
+  const imageFilePath = await saveMediaFile(buffer, imageFileName);
+  const imgTranscription = await transcryptImage(imageFilePath);
+  return `Tente encontrar os produtos mais similares a descrição a seguir: ${imgTranscription}`;
+}
+
+async function processAudio(message) {
+  const buffer = await downloadMediaMessage(message, 'buffer', {});
+  const audioFileName = `audio/${message.key.id}.ogg`; // Alterado para .ogg
+  await saveMediaFile(buffer, audioFileName);
+  const audioTranscription = await audio(audioFileName);
+  console.log(audioTranscription);
+  return audioTranscription;
+}
+
+async function processText(message) {
+  let input = message.message.extendedTextMessage.text || '';
+  return input;
+}
+
+async function quoted(contextInfo, primaryMessage) {
+  let response = primaryMessage;
+  let quotedText = '';
+  const quotedMessage = contextInfo.quotedMessage;
+
+  if (contextInfo.participant === "554797653226@s.whatsapp.net") {
+    quotedText = quotedMessage.conversation || quotedMessage.extendedTextMessage?.text || '';
+    response = `Mensagem atual: ${primaryMessage}\nMensagem recuperada: ${quotedText}`;
+  } else if (quotedMessage?.extendedTextMessage) {
+    quotedText = quotedMessage.extendedTextMessage.text;
+    response = `Mensagem atual: ${primaryMessage}\nMensagem recuperada: ${quotedText}`;
+  } else if (quotedMessage?.conversation) {
+    quotedText = quotedMessage.conversation;
+    response = `Mensagem atual: ${primaryMessage}\nMensagem recuperada: ${quotedText}`;
+  } else {
+    console.log("Tipo de mensagem citada não suportado.");
+  }
+  console.log(response.trim());
+  return response.trim();
+}
+
+async function handleUnsupportedMessage(messageType) {
+  console.log(`Tipo de mensagem não suportado: ${messageType}. Enviando resposta padrão.`);
+  return 'Desculpe, não consigo processar este tipo de mensagem no momento.';
+}
+
 async function query(data) {
   let attempts = 0;
   const maxAttempts = 3;
@@ -151,7 +211,6 @@ async function query(data) {
 
 async function handleMessage(client, message) {
   try {
-    // Verificar se é mensagem de grupo e se o remetente não é o permitido
     const isGroup = message.key.remoteJid?.endsWith('@g.us');
     const allowedNumber = '555499000753@s.whatsapp.net';
 
@@ -180,14 +239,13 @@ async function handleMessage(client, message) {
         input = await extensoes.processText(message);
         break;
       default:
-        console.log('Tipo de mensagem não suportado.');
-        input = 'Olá, como posso ajudar?'; // Mensagem de boas-vindas padrão
+        input = await handleUnsupportedMessage(messageType);
+        break;
     }
 
     const contextInfo = message.message[messageType]?.contextInfo;
     if (contextInfo?.quotedMessage) {
-      const quotedMessage = contextInfo;
-      input += ' ' + await extensoes.quoted(quotedMessage, input);
+      input += ' ' + await extensoes.quoted(contextInfo, input);
     }
 
     if (!messageBuffer[message.key.remoteJid]) {
@@ -219,11 +277,7 @@ async function handleMessage(client, message) {
         await client.sendMessage(message.key.remoteJid, { text: apiResponse.text.replace(/:\s*$/, '') });
 
         // Salvar as informações da sessão após processar a mensagem
-        saveSessionInfo({
-          messageBuffer: messageBuffer,
-          messageTimers: messageTimers,
-          // Adicione outras informações que você deseja salvar
-        });
+        // Nota: As informações de sessão agora são gerenciadas exclusivamente em index.js
       } catch (error) {
         console.error('Erro ao enviar mensagem:', error);
       }
@@ -241,6 +295,5 @@ export default {
   transcryptImage,
   extractAudioFromVideo,
   handleMessage,
-  saveSessionInfo,
-  loadSessionInfo,
+  // Remova saveSessionInfo e loadSessionInfo daqui
 };
